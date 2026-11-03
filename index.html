@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>App TD EAG</title>
+<meta name="theme-color" content="#000000">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="TD EAG">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="manifest" href="manifest.webmanifest">
+
+<style>
+:root{--bg:#0a0a0a;--card:#161616;--line:#2a2a2a;--text:#ececec;--muted:#8d8d8d;--acc:#c9c9c9;--box:#1f1f1f;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;min-height:100vh;display:flex;justify-content:center;padding:20px 16px}
+.app{width:100%;max-width:460px}
+h1{font-size:22px;letter-spacing:.12em;text-align:center;margin:8px 0 4px;font-weight:600}
+h2{font-size:14px;margin:0;font-weight:600}
+.sub{text-align:center;color:var(--muted);font-size:13px;margin-bottom:20px}
+.tabs{display:flex;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:4px;gap:4px}
+.tab{flex:1;padding:12px 8px;border:0;border-radius:9px;background:transparent;color:var(--muted);font-size:14px;font-weight:600;cursor:pointer}
+.tab.on{background:#2b2b2b;color:var(--text)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;margin-top:14px}
+label{display:block;font-size:13px;color:var(--muted);margin:0 0 8px}
+input{width:100%;padding:13px;background:var(--box);color:var(--text);border:1px solid var(--line);border-radius:10px;font-size:16px;color-scheme:dark;margin-bottom:12px}
+.row{display:flex;gap:10px}
+button.go{flex:1;padding:14px;border:0;border-radius:10px;background:var(--acc);color:#0a0a0a;font-size:15px;font-weight:700;cursor:pointer}
+button.sec{flex:1;padding:14px;border:1px solid var(--line);border-radius:10px;background:var(--box);color:var(--text);font-size:15px;font-weight:600;cursor:pointer}
+button:disabled{opacity:.4;cursor:not-allowed}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}
+.cell{background:var(--box);border:1px solid var(--line);border-radius:10px;padding:14px;text-align:center}
+.num{font-size:32px;font-weight:700}
+.lbl{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-top:2px}
+.tot{margin-top:12px;text-align:center;color:var(--muted);font-size:13px}
+.msg{margin-top:14px;color:#d6a4a4;font-size:14px;text-align:center}
+.head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.cnt{font-size:12px;color:var(--muted)}
+.item{background:var(--box);border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:10px}
+.item .n{font-weight:700;font-size:15px}
+.item .d{color:var(--muted);font-size:12px;margin:2px 0 8px}
+.item .r{font-size:14px}
+.acts{display:flex;gap:8px;margin-top:10px}
+.acts button{flex:1;padding:9px;border-radius:8px;border:1px solid var(--line);background:transparent;color:var(--text);font-size:13px;cursor:pointer}
+.empty{color:var(--muted);font-size:13px;text-align:center}
+</style>
+</head>
+<body>
+<div class="app">
+  <h1>APP TD EAG</h1>
+  <div class="sub">Cálculo de tiempo transcurrido y tiempo restante</div>
+  <div class="tabs">
+    <button class="tab on" id="t1">Tiempo transcurrido</button>
+    <button class="tab" id="t2">Tiempo hasta</button>
+  </div>
+  <div class="card">
+    <label for="nm">Nombre de la selección</label>
+    <input type="text" id="nm" maxlength="30" placeholder="Ej.: Inicio del proyecto">
+    <label id="lab" for="f">Fecha de inicio</label>
+    <input type="date" id="f">
+    <div class="row">
+      <button class="go" id="go">Calcular</button>
+      <button class="sec" id="sv">Guardar</button>
+    </div>
+    <div id="out"></div>
+  </div>
+  <div class="card">
+    <div class="head"><h2 id="sh">Selecciones guardadas</h2><span class="cnt" id="cnt"></span></div>
+    <div id="list"></div>
+  </div>
+</div>
+<script>
+var KEY='tdeag-v1',MAX=5,mode=1,mem={1:[],2:[]};
+var f=document.getElementById('f'),nm=document.getElementById('nm'),out=document.getElementById('out'),lab=document.getElementById('lab');
+var list=document.getElementById('list'),cnt=document.getElementById('cnt'),sv=document.getElementById('sv');
+function load(){try{var r=localStorage.getItem(KEY);if(r){var o=JSON.parse(r);if(o&&o[1]&&o[2])mem=o;}}catch(e){}}
+function persist(){try{localStorage.setItem(KEY,JSON.stringify(mem));}catch(e){}}
+function pd(s){var p=s.split('-');return new Date(+p[0],+p[1]-1,+p[2]);}
+function dim(y,m){return new Date(y,m+1,0).getDate();}
+function today(){var t=new Date();return new Date(t.getFullYear(),t.getMonth(),t.getDate());}
+function diff(a,b){
+  var y=b.getFullYear()-a.getFullYear(),m=b.getMonth()-a.getMonth(),d=b.getDate()-a.getDate();
+  if(d<0){m--;var pm=b.getMonth()-1,py=b.getFullYear();if(pm<0){pm=11;py--;}d+=dim(py,pm);}
+  if(m<0){y--;m+=12;}
+  return {y:y,m:m,w:Math.floor(d/7),d:d%7};
+}
+function compute(ds,md){
+  var t=today(),s=pd(ds),a,b;
+  if(md===1){if(s>t)return {err:'La fecha es posterior a hoy. Utilice la función «Tiempo hasta».'};a=s;b=t;}
+  else{if(s<t)return {err:'La fecha es anterior a hoy. Utilice la función «Tiempo transcurrido».'};a=t;b=s;}
+  return {r:diff(a,b),n:Math.round((b-a)/86400000)};
+}
+function cell(n,l){return '<div class="cell"><div class="num">'+n+'</div><div class="lbl">'+l+'</div></div>';}
+function calc(){
+  if(!f.value){out.innerHTML='<div class="msg">Por favor, introduzca una fecha.</div>';return null;}
+  var c=compute(f.value,mode);
+  if(c.err){out.innerHTML='<div class="msg">'+c.err+'</div>';return null;}
+  out.innerHTML='<div class="grid">'+cell(c.r.y,'Años')+cell(c.r.m,'Meses')+cell(c.r.w,'Semanas')+cell(c.r.d,'Días')+'</div><div class="tot">Total: '+c.n.toLocaleString('es-ES')+' días</div>';
+  return c;
+}
+function esc(s){var d=document.createElement('div');d.textContent=s;return d.innerHTML;}
+function fmt(ds){return pd(ds).toLocaleDateString('es-ES',{day:'2-digit',month:'long',year:'numeric'});}
+function render(){
+  var arr=mem[mode];
+  cnt.textContent=arr.length+' / '+MAX;
+  sv.disabled=arr.length>=MAX;
+  if(!arr.length){list.innerHTML='<div class="empty">Aún no hay selecciones guardadas.</div>';return;}
+  list.innerHTML=arr.map(function(it,i){
+    var c=compute(it.d,mode),res;
+    if(c.err)res='<span style="color:#d6a4a4">Fecha fuera de rango para esta función</span>';
+    else res=c.r.y+' a · '+c.r.m+' m · '+c.r.w+' s · '+c.r.d+' d ('+c.n.toLocaleString('es-ES')+' días)';
+    return '<div class="item"><div class="n">'+esc(it.n)+'</div><div class="d">'+fmt(it.d)+'</div><div class="r">'+res+'</div>'
+      +'<div class="acts"><button data-u="'+i+'">Usar</button><button data-x="'+i+'">Eliminar</button></div></div>';
+  }).join('');
+}
+function setMode(m){
+  mode=m;
+  document.getElementById('t1').className='tab'+(m===1?' on':'');
+  document.getElementById('t2').className='tab'+(m===2?' on':'');
+  lab.textContent=m===1?'Fecha de inicio':'Fecha objetivo';
+  out.innerHTML='';
+  if(f.value)calc();
+  render();
+}
+sv.onclick=function(){
+  if(mem[mode].length>=MAX)return;
+  if(!f.value){out.innerHTML='<div class="msg">Introduzca una fecha antes de guardar.</div>';return;}
+  if(!calc())return;
+  var n=nm.value.trim()||('Selección '+(mem[mode].length+1));
+  mem[mode].push({n:n,d:f.value});
+  persist();nm.value='';render();
+};
+list.onclick=function(e){
+  var u=e.target.getAttribute('data-u'),x=e.target.getAttribute('data-x');
+  if(u!==null){var it=mem[mode][+u];f.value=it.d;nm.value=it.n;calc();window.scrollTo(0,0);}
+  if(x!==null){mem[mode].splice(+x,1);persist();render();}
+};
+document.getElementById('t1').onclick=function(){setMode(1);};
+document.getElementById('t2').onclick=function(){setMode(2);};
+document.getElementById('go').onclick=calc;
+f.onchange=calc;
+load();render();
+try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist();}catch(e){}
+if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){});});}
+</script>
+</body>
+</html>

@@ -1,0 +1,16 @@
+APP TD EAG - Instalación autónoma
+
+Contenido: index.html, manifest.webmanifest, sw.js y carpeta icons.
+Requisito: alojar la carpeta en una dirección HTTPS (GitHub Pages, Netlify, Cloudflare Pages o servidor propio).
+
+GitHub Pages (gratuito):
+1. Cree un repositorio nuevo en github.com y suba todos los archivos de esta carpeta a la raíz.
+2. En Settings > Pages, seleccione la rama main y la carpeta /(root).
+3. Abra la dirección https://SU-USUARIO.github.io/NOMBRE-REPOSITORIO/ en el móvil.
+
+Instalación en el móvil:
+- iPhone (Safari): Compartir > Añadir a pantalla de inicio.
+- Android (Chrome): menú > Instalar aplicación.
+
+Actualizaciones: al modificar los archivos, cambie CACHE='td-eag-v1' por 'td-eag-v2' en sw.js.
+Datos: las selecciones se guardan en el propio dispositivo (localStorage) y funcionan sin conexión.
