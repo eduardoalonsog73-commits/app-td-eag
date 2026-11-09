@@ -24,7 +24,7 @@ h1{font-size:22px;letter-spacing:.12em;text-align:center;margin:8px 0 4px;font-w
 h2{font-size:14px;margin:0;font-weight:600}
 .sub{text-align:center;color:var(--muted);font-size:13px;margin-bottom:20px}
 .tabs{display:flex;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:4px;gap:4px}
-.tab{flex:1;padding:12px 4px;border:0;border-radius:9px;background:transparent;color:var(--muted);font-size:13px;line-height:1.25;font-weight:600;cursor:pointer}
+.tab{flex:1;padding:12px 4px;border:0;border-radius:9px;background:transparent;color:var(--muted);font-size:12px;line-height:1.25;font-weight:600;cursor:pointer}
 .tab.on{background:#2b2b2b;color:var(--text)}
 .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;margin-top:14px}
 label{display:block;font-size:13px;color:var(--muted);margin:0 0 8px}
@@ -52,16 +52,18 @@ button:disabled{opacity:.4;cursor:not-allowed}
 .kv span:first-child{color:var(--muted)}
 .kv span:last-child{text-align:right;font-weight:600}
 .note{margin-top:12px;font-size:12px;color:var(--muted);line-height:1.5}
+.row>div{flex:1;min-width:0}
 </style>
 </head>
 <body>
 <div class="app">
   <h1>APP TD EAG</h1>
-  <div class="sub">Tiempo transcurrido, tiempo restante y días cotizados</div>
+  <div class="sub">Tiempo transcurrido, tiempo restante, días cotizados e indemnización</div>
   <div class="tabs">
     <button class="tab on" id="t1">Tiempo transcurrido</button>
     <button class="tab" id="t2">Tiempo hasta</button>
     <button class="tab" id="t3">Días cotizados</button>
+    <button class="tab" id="t4">Indemnización</button>
   </div>
   <div class="card">
     <label for="nm">Nombre de la selección</label>
@@ -82,6 +84,24 @@ button:disabled{opacity:.4;cursor:not-allowed}
     <div class="head"><h2>Días cotizados</h2><span class="cnt" id="cotDate"></span></div>
     <div id="cotOut"></div>
     <div class="note">Cómputo orientativo. Parte del Informe de Vida Laboral expedido el 9 de septiembre de 2026 (días computables, una vez descontado el pluriempleo) y suma un día por cada día natural transcurrido desde esa fecha, al continuar en situación de alta. Equivalencias utilizadas: 1 año = 365,25 días; 1 mes = 30 días. La cifra oficial es la que consta en un nuevo informe de la Tesorería General de la Seguridad Social.</div>
+  </div>
+  <div class="card" id="v4" style="display:none">
+    <label for="iNm">Nombre de la selección</label>
+    <input type="text" id="iNm" maxlength="30" placeholder="Ej.: Escenario 1">
+    <label for="iSal">Sueldo bruto anual (€)</label>
+    <input type="number" id="iSal" inputmode="decimal" min="0" step="any" placeholder="Ej.: 45000">
+    <label for="iF">Fecha de inicio de la permanencia</label>
+    <input type="date" id="iF">
+    <div class="row">
+      <button class="go" id="iGo">Calcular</button>
+      <button class="sec" id="iSv">Guardar</button>
+    </div>
+    <div id="iOut"></div>
+    <div class="note">Cálculo orientativo. La permanencia se calcula desde la fecha de inicio hasta la fecha de consulta (hoy) y se actualiza cada vez que se abre la aplicación; los meses y días sobrantes se prorratean. Salario diario = sueldo bruto anual ÷ días del año natural de la fecha de consulta (365 o 366); indemnización = salario diario × 33 días × años de permanencia. Corresponde a la fórmula del despido improcedente (33 días por año, con un máximo de 24 mensualidades) para el servicio posterior al 12 de febrero de 2012. No contempla el tramo anterior (45 días por año) ni mejoras previstas en convenio o contrato. Para un caso concreto, consulte a un profesional laboral.</div>
+  </div>
+  <div class="card" id="v4b" style="display:none">
+    <div class="head"><h2>Selecciones guardadas</h2><span class="cnt" id="iCnt"></span></div>
+    <div id="iList"></div>
   </div>
 </div>
 <script>
@@ -129,10 +149,10 @@ function render(){
   }).join('');
 }
 function setMode(m){
-  var c3=(m===3);
+  var c3=(m===3),c4=(m===4);
   document.getElementById('t3').className='tab'+(c3?' on':'');
-  showViews(c3);
-  if(c3){document.getElementById('t1').className='tab';document.getElementById('t2').className='tab';renderCot();return;}
+  document.getElementById('t4').className='tab'+(c4?' on':'');showViews(c3?3:(c4?4:0));
+  if(c3||c4){document.getElementById('t1').className='tab';document.getElementById('t2').className='tab';if(c3)renderCot();else iRefresh();return;}
   mode=m;
   document.getElementById('t1').className='tab'+(m===1?' on':'');
   document.getElementById('t2').className='tab'+(m===2?' on':'');
@@ -157,6 +177,7 @@ list.onclick=function(e){
 document.getElementById('t1').onclick=function(){setMode(1);};
 document.getElementById('t2').onclick=function(){setMode(2);};
 document.getElementById('t3').onclick=function(){setMode(3);};
+document.getElementById('t4').onclick=function(){setMode(4);};
 document.getElementById('go').onclick=calc;
 f.onchange=calc;
 /* Días cotizados: base = Informe de Vida Laboral del 09/09/2026.
@@ -185,14 +206,80 @@ function renderCot(){
     +kv('Total a fecha de hoy',fn(tot)+' días')
     +'</div>';
 }
-function showViews(c3){
+function showViews(v){
   var cs=document.querySelectorAll('.app > .card');
-  for(var i=0;i<cs.length;i++){cs[i].style.display=(cs[i].id==='v3')?(c3?'':'none'):(c3?'none':'');}
+  for(var i=0;i<cs.length;i++){var id=cs[i].id,mine=(id==='v3')?3:((id==='v4'||id==='v4b')?4:0);cs[i].style.display=(mine===v)?'':'none';}
 }
 document.addEventListener('visibilitychange',function(){if(!document.hidden)renderCot();});
 window.addEventListener('pageshow',renderCot);
 setInterval(renderCot,60000);
-load();render();renderCot();
+/* Indemnización por despido: 33 días de salario por año de servicio */
+var IKEY='tdeag-ind-v2',IMAX=10,imem=[];
+var iNm=document.getElementById('iNm'),iSal=document.getElementById('iSal'),iF=document.getElementById('iF');
+var iOut=document.getElementById('iOut'),iList=document.getElementById('iList'),iCnt=document.getElementById('iCnt'),iSv=document.getElementById('iSv');
+function iLoad(){try{var r=localStorage.getItem(IKEY);if(r){var o=JSON.parse(r);if(Array.isArray(o))imem=o;}}catch(e){}}
+function iPersist(){try{localStorage.setItem(IKEY,JSON.stringify(imem));}catch(e){}}
+function leap(y){return (y%4===0&&y%100!==0)||y%400===0;}
+function eur(v){return v.toLocaleString('es-ES',{style:'currency',currency:'EUR'});}
+function nd(v){return v.toLocaleString('es-ES',{maximumFractionDigits:2});}
+function rd(el){return el.value===''?0:parseFloat(el.value);}
+function iRead(){return {sal:rd(iSal),f:iF.value};}
+function iCompute(o){
+  if(!(o.sal>0))return {err:'Introduzca un sueldo bruto anual superior a 0.'};
+  if(!o.f)return {err:'Introduzca la fecha de inicio de la permanencia.'};
+  var t=today(),s=pd(o.f);if(s>t)return {err:'La fecha de inicio es posterior a hoy.'};var r=diff(s,t),dias=leap(t.getFullYear())?366:365,an=r.y+r.m/12+(r.w*7+r.d)/dias;
+  if(!(an>0))return {err:'La permanencia debe ser superior a cero.'};
+  
+  var dia=o.sal/dias,dind=33*an;
+  return {a:t.getFullYear(),f:o.f,r:r,n:Math.round((t-s)/86400000),dias:dias,dia:dia,an:an,dind:dind,ind:dia*dind,tope:2*o.sal};
+}
+function iHtml(c){
+  var h='<div class="grid" style="grid-template-columns:1fr"><div class="cell"><div class="num">'+eur(c.ind)+'</div><div class="lbl">Indemnización bruta</div></div></div>';
+  h+='<div class="tot" style="margin-top:16px">Permanencia (base del cálculo)</div><div class="grid" style="margin-top:8px">'+cell(c.r.y,'Años')+cell(c.r.m,'Meses')+cell(c.r.w,'Semanas')+cell(c.r.d,'Días')+'</div><div style="margin-top:14px">'
+    +kv('Fecha de inicio',fmt(c.f))
+    +kv('Días de permanencia',fn(c.n))
+    +kv('Año natural de la consulta',c.a+' ('+c.dias+' días)')
+    +kv('Salario bruto diario',eur(c.dia))
+    +kv('Permanencia en años (prorrateada)',nd(c.an))
+    +kv('Días de indemnización (33 por año)',nd(c.dind))
+    +kv('Tope legal (24 mensualidades)',eur(c.tope))
+    +'</div>';
+  if(c.ind>c.tope)h+='<div class="msg">El resultado supera el tope legal de 24 mensualidades. El importe máximo aplicable sería '+eur(c.tope)+'.</div>';
+  return h;
+}
+function iRun(){
+  var c=iCompute(iRead());
+  if(c.err){iOut.innerHTML='<div class="msg">'+c.err+'</div>';return null;}
+  iOut.innerHTML=iHtml(c);try{localStorage.setItem(IKEY+'-last',JSON.stringify({s:iSal.value,f:iF.value}));}catch(e){}return c;
+}
+function iRender(){
+  iCnt.textContent=imem.length+' / '+IMAX;
+  iSv.disabled=imem.length>=IMAX;
+  if(!imem.length){iList.innerHTML='<div class="empty">Aún no hay selecciones guardadas.</div>';return;}
+  iList.innerHTML=imem.map(function(it,i){
+    var c=iCompute({sal:it.s,f:it.f}),res=c.err?'<span style="color:#d6a4a4">Datos no válidos</span>':'<b>'+eur(c.ind)+'</b> ('+c.r.y+' a · '+c.r.m+' m · '+c.r.w+' s · '+c.r.d+' d)';
+    return '<div class="item"><div class="n">'+esc(it.n)+'</div><div class="d">'+eur(it.s)+' brutos/año · desde '+fmt(it.f)+'</div><div class="r">'+res+'</div>'
+      +'<div class="acts"><button data-iu="'+i+'">Usar</button><button data-ix="'+i+'">Eliminar</button></div></div>';
+  }).join('');
+}
+document.getElementById('iGo').onclick=iRun;
+iSv.onclick=function(){
+  if(imem.length>=IMAX)return;
+  var o=iRead();if(!iRun())return;
+  imem.push({n:iNm.value.trim()||('Selección '+(imem.length+1)),s:o.sal,f:o.f});
+  iPersist();iNm.value='';iRender();
+};
+iList.onclick=function(e){
+  var u=e.target.getAttribute('data-iu'),x=e.target.getAttribute('data-ix');
+  if(u!==null){var it=imem[+u];iNm.value=it.n;iSal.value=it.s;iF.value=it.f;iRun();window.scrollTo(0,0);}
+  if(x!==null){imem.splice(+x,1);iPersist();iRender();}
+};
+load();render();renderCot();iLoad();
+try{var L=JSON.parse(localStorage.getItem(IKEY+'-last')||'null');if(L){iSal.value=L.s||'';iF.value=L.f||'';}}catch(e){}
+function iRefresh(){iRender();if(iF.value&&iSal.value)iRun();}
+document.addEventListener('visibilitychange',function(){if(!document.hidden)iRefresh();});
+window.addEventListener('pageshow',iRefresh);
+iRefresh();
 </script>
 </body>
 </html>
